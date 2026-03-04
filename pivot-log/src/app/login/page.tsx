@@ -8,7 +8,8 @@ export default async function LoginPage(
     }
 ) {
     const searchParams = await props.searchParams;
-    const errorMessage = typeof searchParams.message === 'string' ? searchParams.message : null;
+    const message = typeof searchParams.message === 'string' ? searchParams.message : null;
+    const isError = searchParams.error !== 'false';
 
     return (
         <div className="flex min-h-screen relative overflow-hidden bg-[#0A0A0A] font-mono selection:bg-green-500/30 text-white">
@@ -42,14 +43,16 @@ export default async function LoginPage(
                         Authenticate or initialize new resilience logs.
                     </p>
 
-                    {errorMessage && (
-                        <div className="mt-6 bg-red-500/10 border border-red-500/50 p-4 relative animate-in fade-in duration-300">
-                            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-red-500 to-transparent" />
+                    {message && (
+                        <div className={`mt-6 p-4 relative animate-in fade-in duration-300 border ${isError ? 'bg-red-500/10 border-red-500/50' : 'bg-green-500/10 border-green-500/50'}`}>
+                            <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${isError ? 'from-red-500' : 'from-green-500'} to-transparent`} />
                             <div className="flex items-start gap-3">
-                                <Terminal className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                <Terminal className={`w-5 h-5 shrink-0 mt-0.5 ${isError ? 'text-red-500' : 'text-green-500'}`} />
                                 <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-red-500">[ AUTH_ERROR ]</h3>
-                                    <p className="text-sm text-red-400 mt-1">{errorMessage}</p>
+                                    <h3 className={`text-sm font-bold uppercase tracking-widest ${isError ? 'text-red-500' : 'text-green-500'}`}>
+                                        {isError ? '[ AUTH_ERROR ]' : '[ SYSTEM_NOTICE ]'}
+                                    </h3>
+                                    <p className={`text-sm mt-1 ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
                                 </div>
                             </div>
                         </div>

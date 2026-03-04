@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getPublicProfile } from '../../actions/pivot';
 import { LogCard } from '../../dashboard/components/LogCard';
-import { Terminal, ShieldCheck, Award } from 'lucide-react';
+import { Terminal, ShieldCheck, Award, Github, Linkedin, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import { getEndorsements } from '../../actions/mentorship';
 import { EndorsementButton } from '../../dashboard/components/EndorsementButton';
@@ -65,6 +65,28 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                                 <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mt-1 flex items-center gap-2">
                                     <ShieldCheck className="w-4 h-4 text-green-500" />
                                     <span>Verified Resilience Portfolio</span>
+                                </div>
+                                {profile.bio && (
+                                    <p className="mt-4 text-sm text-zinc-400 max-w-sm border-l-2 border-zinc-800 pl-3 leading-relaxed">
+                                        {profile.bio}
+                                    </p>
+                                )}
+                                <div className="flex items-center gap-3 mt-4">
+                                    {profile.github_url && (
+                                        <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
+                                            <Github className="w-5 h-5" />
+                                        </a>
+                                    )}
+                                    {profile.linkedin_url && (
+                                        <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
+                                            <Linkedin className="w-5 h-5" />
+                                        </a>
+                                    )}
+                                    {profile.website_url && (
+                                        <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
+                                            <Link2 className="w-5 h-5" />
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </div>

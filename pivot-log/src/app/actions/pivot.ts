@@ -185,7 +185,7 @@ export async function getPublicProfile(username: string) {
     // 1. Find user by public_slug
     const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, name, avatar_url, public_slug')
+        .select('id, name, avatar_url, public_slug, bio, github_url, linkedin_url, website_url')
         .eq('public_slug', username)
         .single();
 
