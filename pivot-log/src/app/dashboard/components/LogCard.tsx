@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { Terminal, CheckCircle2, CircleDashed, Image as ImageIcon } from 'lucide-react';
+import { Terminal, CheckCircle2, CircleDashed, Image as ImageIcon, Radio } from 'lucide-react';
+import { toggleMentorBeacon } from '@/app/actions/mentorship';
+import { useState } from 'react';
 
 interface LogCardProps {
     log: {
@@ -17,12 +19,23 @@ interface LogCardProps {
         frustration_level: number | null;
         created_at: string;
         resolved_at: string | null;
+        needs_mentor?: boolean;
     };
     readonly?: boolean;
 }
 
 export function LogCard({ log, readonly = false }: LogCardProps) {
     const isResolved = log.status === 'Resolved' || (log.the_pivot && log.the_pivot.trim() !== '');
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    const handleToggleBeacon = async () => {
+        setIsUpdating(true);
+        try {
+            await toggleMentorBeacon(log.id, !!log.needs_mentor);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     return (
         <div className={`relative border-l-2 pl-6 py-2 mb-8 ${isResolved ? 'border-green-500' : 'border-red-500/80'} font-mono`}>
@@ -51,12 +64,25 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                     </div>
 
                     {!readonly && !isResolved && (
-                        <Link
-                            href={`/dashboard/edit-pivot/${log.id}`}
-                            className="text-xs font-bold uppercase tracking-widest text-black bg-green-500 px-3 py-1.5 hover:bg-green-400 transition-colors shadow-[0_0_10px_rgba(34,197,94,0.3)] whitespace-nowrap"
-                        >
-                            Update / Resolve_
-                        </Link>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleToggleBeacon}
+                                disabled={isUpdating}
+                                className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.3)] whitespace-nowrap flex items-center gap-2 ${log.needs_mentor
+                                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 animate-pulse'
+                                    : 'bg-transparent border border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10'
+                                    } disabled:opacity-50`}
+                            >
+                                <Radio className={`w-3 h-3 ${log.needs_mentor ? 'animate-ping' : ''}`} />
+                                {log.needs_mentor ? 'Beacon Active_' : 'Trigger Beacon_'}
+                            </button>
+                            <Link
+                                href={`/dashboard/edit-pivot/${log.id}`}
+                                className="text-xs font-bold uppercase tracking-widest text-black bg-green-500 px-3 py-1.5 hover:bg-green-400 transition-colors shadow-[0_0_10px_rgba(34,197,94,0.3)] whitespace-nowrap"
+                            >
+                                Update / Resolve_
+                            </Link>
+                        </div>
                     )}
                 </div>
 

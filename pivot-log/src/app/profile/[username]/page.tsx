@@ -1,17 +1,30 @@
 import { notFound } from 'next/navigation';
 import { getPublicProfile } from '../../actions/pivot';
 import { LogCard } from '../../dashboard/components/LogCard';
-import { Terminal, ShieldCheck } from 'lucide-react';
+import { Terminal, ShieldCheck, Award } from 'lucide-react';
 import Link from 'next/link';
+import { getEndorsements } from '../../actions/mentorship';
+import { EndorsementButton } from '../../dashboard/components/EndorsementButton';
+import { createClient } from '@/utils/supabase/server';
 
-export default async function PublicProfilePage({ params }: { params: { username: string } }) {
-    const data = await getPublicProfile(params.username);
+export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
+    const { username } = await params;
+    const data = await getPublicProfile(username);
+    const supabase = await createClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
 
     if (!data || !data.profile) {
         notFound();
     }
 
     const { profile, pivots } = data;
+    const endorsements = await getEndorsements(profile.id);
+
+    // Group endorsements by trait for rendering
+    const traitCounts = endorsements.reduce((acc: Record<string, number>, curr: any) => {
+        acc[curr.trait] = (acc[curr.trait] || 0) + 1;
+        return acc;
+    }, {});
 
     return (
         <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] font-mono text-white p-4 sm:p-8 selection:bg-green-500/30">
@@ -59,6 +72,26 @@ export default async function PublicProfilePage({ params }: { params: { username
                         <div className="bg-zinc-900/50 border border-green-500/20 px-6 py-4 text-center">
                             <div className="text-3xl font-black text-green-500">{pivots?.length || 0}</div>
                             <div className="text-xs text-zinc-400 uppercase tracking-widest font-bold mt-1">Pivots Executed</div>
+                        </div>
+
+                        {/* Endorsements summary & button */}
+                        <div className="flex flex-col items-end gap-3 z-10">
+                            {Object.entries(traitCounts).length > 0 && (
+                                <div className="flex flex-wrap justify-end gap-2 mb-2 max-w-[250px]">
+                                    {Object.entries(traitCounts).map(([trait, count]) => (
+                                        <div key={trait} className="flex items-center gap-1.5 bg-black border border-purple-500/30 px-2 py-1">
+                                            <Award className="w-3 h-3 text-purple-500" />
+                                            <span className="text-[10px] uppercase font-bold text-zinc-300">{trait}</span>
+                                            <span className="text-xs font-black text-purple-400 bg-purple-500/10 px-1">{count as number}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <EndorsementButton
+                                endorseeId={profile.id}
+                                endorsements={endorsements}
+                                currentUserId={currentUser?.id}
+                            />
                         </div>
                     </div>
                 </div>

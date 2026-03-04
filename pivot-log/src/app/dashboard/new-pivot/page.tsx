@@ -3,9 +3,44 @@
 import { Terminal, Save, Zap } from 'lucide-react';
 import { createPivot } from './actions';
 import { useState } from 'react';
+import imageCompression from 'browser-image-compression';
 
 export default function NewPivotPage() {
     const [frustration, setFrustration] = useState(5);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+
+        const formData = new FormData(e.currentTarget);
+        const evidenceFile = formData.get('evidence') as File;
+
+        if (evidenceFile && evidenceFile.size > 0) {
+            try {
+                const options = {
+                    maxSizeMB: 1, // Max size 1MB
+                    maxWidthOrHeight: 1920, // Max dimension
+                    useWebWorker: true, // Use web worker for better performance
+                };
+
+                // Compress the image
+                const compressedFile = await imageCompression(evidenceFile, options);
+
+                // Replace the original file in FormData with the compressed one
+                formData.set('evidence', compressedFile, compressedFile.name);
+            } catch (error) {
+                console.error("Image compression error:", error);
+                // We'll proceed with the original file if compression fails unexpectedly
+            }
+        }
+
+        try {
+            await createPivot(formData);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="p-4 sm:p-8 max-w-4xl mx-auto font-mono selection:bg-green-500/30">
@@ -17,7 +52,7 @@ export default function NewPivotPage() {
                 <p className="text-zinc-500 mt-2 text-sm">Document an active failure state to establish your baseline.</p>
             </div>
 
-            <form action={createPivot} className="space-y-8 bg-black border-2 border-zinc-800 p-8 shadow-2xl relative overflow-hidden group">
+            <form onSubmit={handleSubmit} className="space-y-8 bg-black border-2 border-zinc-800 p-8 shadow-2xl relative overflow-hidden group">
                 {/* Decorative border glow */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-yellow-500 to-transparent opacity-50" />
 
@@ -123,10 +158,11 @@ export default function NewPivotPage() {
                 <div className="flex justify-end pt-6 border-t border-zinc-800">
                     <button
                         type="submit"
-                        className="flex items-center gap-2 bg-red-500 hover:bg-red-400 text-black px-8 py-3 font-black uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-400 text-black px-8 py-3 font-black uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)] disabled:opacity-50"
                     >
                         <Terminal className="w-5 h-5" />
-                        Log Failure
+                        {isSubmitting ? 'Logging...' : 'Log Failure'}
                     </button>
                 </div>
             </form>

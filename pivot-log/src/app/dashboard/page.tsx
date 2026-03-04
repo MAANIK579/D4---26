@@ -3,6 +3,8 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { TimelineFeed } from './components/TimelineFeed';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { Users } from 'lucide-react';
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -37,14 +39,23 @@ export default async function DashboardPage() {
                     </p>
                 </div>
 
-                {profile?.public_slug && (
-                    <div className="font-mono text-xs border border-zinc-800 bg-black p-3">
-                        <div className="text-zinc-500 mb-1 uppercase tracking-widest font-bold">Public Endpoint:</div>
-                        <a href={`/profile/${profile.public_slug}`} target="_blank" className="text-green-500 hover:underline">
-                            /profile/{profile.public_slug}
-                        </a>
-                    </div>
-                )}
+                <div className="flex flex-col items-end gap-4">
+                    {profile?.public_slug && (
+                        <div className="font-mono text-xs border border-zinc-800 bg-black p-3">
+                            <div className="text-zinc-500 mb-1 uppercase tracking-widest font-bold">Public Endpoint:</div>
+                            <a href={`/profile/${profile.public_slug}`} target="_blank" className="text-green-500 hover:underline">
+                                /profile/{profile.public_slug}
+                            </a>
+                        </div>
+                    )}
+                    <Link
+                        href="/explore"
+                        className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-black text-white hover:border-zinc-500 transition-colors uppercase font-mono text-xs font-bold tracking-widest"
+                    >
+                        <Users className="w-4 h-4 text-green-500" />
+                        Explore Network_
+                    </Link>
+                </div>
             </header>
 
             {/* Top Level Stats */}

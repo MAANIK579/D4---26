@@ -3,7 +3,8 @@ import { updatePivotWithResolve } from '../../../actions/pivot';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
-export default async function EditPivotPage({ params }: { params: { id: string } }) {
+export default async function EditPivotPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -14,7 +15,7 @@ export default async function EditPivotPage({ params }: { params: { id: string }
     const { data: pivot, error } = await supabase
         .from('pivots')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .eq('user_id', user.id)
         .single();
 
@@ -28,7 +29,7 @@ export default async function EditPivotPage({ params }: { params: { id: string }
     }
 
     // Bind ID to action using hidden input or bind
-    const updateAction = updatePivotWithResolve.bind(null, params.id);
+    const updateAction = updatePivotWithResolve.bind(null, id);
 
     return (
         <div className="p-4 sm:p-8 max-w-4xl mx-auto font-mono selection:bg-green-500/30">
