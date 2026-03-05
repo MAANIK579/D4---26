@@ -7,7 +7,6 @@ import { getEndorsements } from '../../actions/mentorship';
 import { EndorsementButton } from '../../dashboard/components/EndorsementButton';
 import { createClient } from '@/utils/supabase/server';
 import { ExportResumeButton } from '../../dashboard/components/ExportResumeButton';
-import { ResumePDFTemplate } from '../../dashboard/components/ResumePDFGenerator';
 import type { Metadata, ResolvingMetadata } from 'next';
 
 export async function generateMetadata(
@@ -166,7 +165,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                                 currentUserId={currentUser?.id}
                             />
                             <div className="mt-4 w-full">
-                                <ExportResumeButton username={profile.public_slug} />
+                                <ExportResumeButton profile={profile} pivots={pivots || []} />
                             </div>
                         </div>
                     </div>
@@ -199,8 +198,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 </Link>
             </div>
 
-            {/* Hidden PDF Template Container */}
-            <ResumePDFTemplate profile={profile} pivots={pivots || []} />
+
         </div>
     );
 }

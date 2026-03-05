@@ -1,16 +1,32 @@
 'use client';
 
 import { FileDown, Loader2 } from 'lucide-react';
-import { generatePDF } from './ResumePDFGenerator';
+import { generateResumePDF } from './ResumePDFGenerator';
 import { useState } from 'react';
 
-export function ExportResumeButton({ username }: { username: string }) {
+interface ExportResumeButtonProps {
+    profile: {
+        name: string;
+        public_slug: string;
+        bio?: string;
+    };
+    pivots: {
+        id: string;
+        initial_goal: string;
+        the_wall: string;
+        the_pivot: string | null;
+        domain: string;
+        resolved_at: string | null;
+    }[];
+}
+
+export function ExportResumeButton({ profile, pivots }: ExportResumeButtonProps) {
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleExport = async () => {
         setIsGenerating(true);
         try {
-            await generatePDF('resume-pdf-template', `${username}_resilience_resume.pdf`);
+            await generateResumePDF({ profile, pivots });
         } catch (error) {
             console.error('Failed to generate PDF', error);
         } finally {

@@ -6,7 +6,6 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { ExportResumeButton } from './components/ExportResumeButton';
-import { ResumePDFTemplate } from './components/ResumePDFGenerator';
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -57,8 +56,8 @@ export default async function DashboardPage() {
                         <Users className="w-4 h-4 text-green-500" />
                         Explore Network_
                     </Link>
-                    {profile?.public_slug && (
-                        <ExportResumeButton username={profile.public_slug} />
+                    {profile && (
+                        <ExportResumeButton profile={profile} pivots={logsData || []} />
                     )}
                 </div>
             </header>
@@ -69,10 +68,7 @@ export default async function DashboardPage() {
             {/* Dynamic Timeline Feed */}
             <TimelineFeed initialLogs={logsData || []} />
 
-            {/* Hidden PDF Template Container */}
-            {profile && (
-                <ResumePDFTemplate profile={profile} pivots={logsData || []} />
-            )}
+
         </div>
     );
 }
