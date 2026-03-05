@@ -75,8 +75,8 @@ export function AnalyticsDashboard({ data, username }: AnalyticsProps) {
                 {/* Heatmap proxy (simplified squares) */}
                 <div className="flex gap-1 mt-6">
                     {Array.from({ length: 14 }).map((_, i) => {
-                        // Create a mock distribution for visuals based on total logs
-                        const intensity = Math.random() > 0.5 ? 'bg-red-500' : 'bg-zinc-800';
+                        // Create a deterministic mock distribution for visuals to avoid hydration errors
+                        const intensity = i % 3 === 0 ? 'bg-red-500' : 'bg-zinc-800';
                         return (
                             <div key={i} className={`flex-1 h-1.5 ${i < data.totalLogged ? intensity : 'bg-zinc-900'}`} />
                         );

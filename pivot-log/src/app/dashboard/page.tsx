@@ -1,6 +1,7 @@
 import { getAnalytics, getUserLogs } from '../actions/pivot';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { TimelineFeed } from './components/TimelineFeed';
+import { ApiKeyDisplay } from './components/ApiKeyDisplay';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -17,7 +18,7 @@ export default async function DashboardPage() {
 
     const { data: profile } = await supabase
         .from('users')
-        .select('name, public_slug')
+        .select('name, public_slug, api_key')
         .eq('id', user.id)
         .single();
 
@@ -48,6 +49,9 @@ export default async function DashboardPage() {
                                 /profile/{profile.public_slug}
                             </a>
                         </div>
+                    )}
+                    {profile?.api_key && (
+                        <ApiKeyDisplay apiKey={profile.api_key} />
                     )}
                     <Link
                         href="/explore"

@@ -5,6 +5,7 @@ create table if not exists public.users (
   email text,
   avatar_url text,
   public_slug text unique,
+  api_key uuid default gen_random_uuid() not null unique,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

@@ -1,0 +1,14 @@
+{
+  "name": "pivotlog-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server for PivotLog — connects Antigravity IDE to your PivotLog account",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "dotenv": "^16.4.7"
+  }
+}
