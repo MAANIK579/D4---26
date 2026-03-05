@@ -5,6 +5,8 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
+import { ExportResumeButton } from './components/ExportResumeButton';
+import { ResumePDFTemplate } from './components/ResumePDFGenerator';
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -50,20 +52,27 @@ export default async function DashboardPage() {
                     )}
                     <Link
                         href="/explore"
-                        className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-black text-white hover:border-zinc-500 transition-colors uppercase font-mono text-xs font-bold tracking-widest"
+                        className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2 border border-zinc-800 bg-black text-white hover:border-zinc-500 transition-colors uppercase font-mono text-xs font-bold tracking-widest"
                     >
                         <Users className="w-4 h-4 text-green-500" />
                         Explore Network_
                     </Link>
+                    {profile?.public_slug && (
+                        <ExportResumeButton username={profile.public_slug} />
+                    )}
                 </div>
             </header>
 
             {/* Top Level Stats */}
-            <AnalyticsDashboard data={analyticsData} />
+            <AnalyticsDashboard data={analyticsData} username={profile?.public_slug} />
 
             {/* Dynamic Timeline Feed */}
             <TimelineFeed initialLogs={logsData || []} />
 
+            {/* Hidden PDF Template Container */}
+            {profile && (
+                <ResumePDFTemplate profile={profile} pivots={logsData || []} />
+            )}
         </div>
     );
 }

@@ -6,6 +6,57 @@ import Link from 'next/link';
 import { getEndorsements } from '../../actions/mentorship';
 import { EndorsementButton } from '../../dashboard/components/EndorsementButton';
 import { createClient } from '@/utils/supabase/server';
+import { ExportResumeButton } from '../../dashboard/components/ExportResumeButton';
+import { ResumePDFTemplate } from '../../dashboard/components/ResumePDFGenerator';
+import type { Metadata, ResolvingMetadata } from 'next';
+
+export async function generateMetadata(
+    { params }: { params: Promise<{ username: string }> },
+    parent: ResolvingMetadata
+): Promise<Metadata> {
+    const { username } = await params;
+    const data = await getPublicProfile(username);
+
+    if (!data || !data.profile) {
+        return { title: 'Not Found | PivotLog' }
+    }
+
+    const pivots = data.pivots || [];
+    const resolvedPivots = pivots.filter(p => p.status === 'Resolved' || (p.the_pivot && p.the_pivot.trim() !== ''));
+
+    // Extract unique domains
+    const domains = Array.from(new Set(pivots.map(p => p.domain))).join(',');
+
+    const ogSearchParams = new URLSearchParams();
+    ogSearchParams.set('username', data.profile.name || data.profile.public_slug || 'Anonymous');
+    ogSearchParams.set('pivots', resolvedPivots.length.toString());
+    ogSearchParams.set('domains', domains || 'Various');
+
+    const ogImageUrl = `/api/og?${ogSearchParams.toString()}`;
+
+    return {
+        title: `${data.profile.name || data.profile.public_slug}'s Resilience Portfolio | PivotLog`,
+        description: data.profile.bio || 'Proof of Work and Resilience over perfection.',
+        openGraph: {
+            title: `${data.profile.name || data.profile.public_slug}'s Resilience Portfolio | PivotLog`,
+            description: data.profile.bio || 'View my documented roadblocks and the pivots that solved them.',
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: 'PivotLog Resilience Stats',
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: `${data.profile.name || data.profile.public_slug}'s Resilience Portfolio | PivotLog`,
+            description: data.profile.bio || 'View my documented roadblocks and the pivots that solved them.',
+            images: [ogImageUrl],
+        },
+    }
+}
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
     const { username } = await params;
@@ -114,36 +165,42 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                                 endorsements={endorsements}
                                 currentUserId={currentUser?.id}
                             />
+                            <div className="mt-4 w-full">
+                                <ExportResumeButton username={profile.public_slug} />
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                {/* Feed of Resolved Pivots */}
-                <div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-3 mb-10 border-b border-zinc-800 pb-4">
-                        [ Resolved_Logs ]
-                    </h2>
-
-                    {(!pivots || pivots.length === 0) ? (
-                        <div className="text-center py-20 border border-zinc-800 border-dashed bg-black/50">
-                            <p className="text-zinc-500 uppercase tracking-widest text-sm">No resolved pivots found for this user yet.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {pivots.map(pivot => (
-                                <LogCard key={pivot.id} log={pivot} readonly={true} />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-20 text-center border-t border-zinc-800 pt-8 pb-12">
-                    <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-widest text-xs">
-                        <Terminal className="w-4 h-4" />
-                        Powered by PivotLog
-                    </Link>
-                </div>
             </div>
+
+            {/* Feed of Resolved Pivots */}
+            <div>
+                <h2 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-3 mb-10 border-b border-zinc-800 pb-4">
+                    [ Resolved_Logs ]
+                </h2>
+
+                {(!pivots || pivots.length === 0) ? (
+                    <div className="text-center py-20 border border-zinc-800 border-dashed bg-black/50">
+                        <p className="text-zinc-500 uppercase tracking-widest text-sm">No resolved pivots found for this user yet.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {pivots.map(pivot => (
+                            <LogCard key={pivot.id} log={pivot} readonly={true} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-20 text-center border-t border-zinc-800 pt-8 pb-12">
+                <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-widest text-xs">
+                    <Terminal className="w-4 h-4" />
+                    Powered by PivotLog
+                </Link>
+            </div>
+
+            {/* Hidden PDF Template Container */}
+            <ResumePDFTemplate profile={profile} pivots={pivots || []} />
         </div>
     );
 }

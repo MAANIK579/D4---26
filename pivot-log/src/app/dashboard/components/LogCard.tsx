@@ -5,6 +5,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { Terminal, CheckCircle2, CircleDashed, Image as ImageIcon, Radio } from 'lucide-react';
 import { toggleMentorBeacon } from '@/app/actions/mentorship';
 import { useState } from 'react';
+import { useChat } from 'ai/react';
+import { MessageSquare, Send } from 'lucide-react';
 
 interface LogCardProps {
     log: {
@@ -27,6 +29,18 @@ interface LogCardProps {
 export function LogCard({ log, readonly = false }: LogCardProps) {
     const isResolved = log.status === 'Resolved' || (log.the_pivot && log.the_pivot.trim() !== '');
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
+    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+        api: '/api/chat',
+        initialMessages: [
+            {
+                id: 'system-context',
+                role: 'system',
+                content: `Context: The user is currently facing the following error/wall: "${log.the_wall}". Their initial goal was: "${log.initial_goal}". Please provide Socratic guidance.`
+            }
+        ]
+    });
 
     const handleToggleBeacon = async () => {
         setIsUpdating(true);
@@ -64,7 +78,17 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                     </div>
 
                     {!readonly && !isResolved && (
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={() => setIsChatOpen(!isChatOpen)}
+                                className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors shadow-[0_0_10px_rgba(168,85,247,0.3)] whitespace-nowrap flex items-center gap-2 ${isChatOpen
+                                    ? 'bg-purple-500 text-black hover:bg-purple-400'
+                                    : 'bg-transparent border border-purple-500/50 text-purple-500 hover:bg-purple-500/10'
+                                    }`}
+                            >
+                                <MessageSquare className="w-3 h-3" />
+                                {isChatOpen ? 'Close Duck_' : 'Ask the Duck_'}
+                            </button>
                             <button
                                 onClick={handleToggleBeacon}
                                 disabled={isUpdating}
@@ -115,6 +139,56 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                                 )}
                             </h4>
                             <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{log.the_pivot}</p>
+                        </div>
+                    )}
+
+                    {/* Socratic Duck Chat UI */}
+                    {isChatOpen && !readonly && !isResolved && (
+                        <div className="mt-6 pt-6 border-t border-zinc-800 animate-in slide-in-from-top-4 duration-300">
+                            <div className="bg-black border border-purple-500/30 p-4">
+                                <h4 className="text-purple-500 font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-sm">
+                                    <Terminal className="w-4 h-4" />
+                                    [ Socratic_Duck Terminal ]
+                                </h4>
+
+                                <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                    {messages.filter(m => m.role !== 'system').length === 0 ? (
+                                        <p className="text-sm text-zinc-500 italic">Duck initialized. Awaiting queries...</p>
+                                    ) : (
+                                        messages.filter(m => m.role !== 'system').map(m => (
+                                            <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[85%] p-3 text-sm ${m.role === 'user'
+                                                    ? 'bg-zinc-900 border border-zinc-700 text-zinc-300'
+                                                    : 'bg-purple-500/10 border border-purple-500/30 text-purple-300'
+                                                    }`}>
+                                                    <span className="text-xs font-bold uppercase tracking-widest opacity-50 block mb-1">
+                                                        {m.role === 'user' ? '> YOU' : '> DUCK'}
+                                                    </span>
+                                                    <div className="whitespace-pre-wrap leading-relaxed">
+                                                        {m.content}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <form onSubmit={handleSubmit} className="flex gap-2">
+                                    <input
+                                        value={input}
+                                        onChange={handleInputChange}
+                                        placeholder="Explain the error roughly..."
+                                        className="flex-1 bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading || !input.trim()}
+                                        className="bg-purple-500 hover:bg-purple-400 text-black px-4 py-2 font-bold uppercase tracking-widest transition-colors flex items-center justify-center disabled:opacity-50"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     )}
                 </div>

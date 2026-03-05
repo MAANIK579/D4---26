@@ -1,8 +1,10 @@
 'use client';
 
 import { Activity, Target, Clock, Zap } from 'lucide-react';
+import { ShareStats } from './ShareStats';
 
 interface AnalyticsProps {
+    username?: string;
     data: {
         totalLogged: number;
         totalResolved: number;
@@ -11,7 +13,7 @@ interface AnalyticsProps {
     } | null;
 }
 
-export function AnalyticsDashboard({ data }: AnalyticsProps) {
+export function AnalyticsDashboard({ data, username }: AnalyticsProps) {
     if (!data) return null;
 
     const resolutionRate = data.totalLogged > 0
@@ -81,6 +83,18 @@ export function AnalyticsDashboard({ data }: AnalyticsProps) {
                     })}
                 </div>
             </div>
+
+            {/* Share action spanning all columns */}
+            {username && (
+                <div className="md:col-span-3">
+                    <ShareStats
+                        username={username}
+                        totalPivots={data.totalResolved}
+                        // Simulate unique domains for now based on total
+                        domains={Array.from({ length: Math.min(3, data.activityData.length || 1) }).map((_, i) => `Domain_${i}`).join(',')}
+                    />
+                </div>
+            )}
         </div>
     );
 }
