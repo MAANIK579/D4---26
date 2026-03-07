@@ -214,3 +214,108 @@ export async function getPublicProfile(username: string) {
         gritScore,
     };
 }
+export async function getRelatedPivots(wallText: string, domain: string, currentUserId: string) {
+    console.log(`[RelatedPivots] Searching for matches. Wall: "${wallText.substring(0, 50)}...", Domain: ${domain}`);
+    const supabase = await createClient();
+
+    // Clean text: remove special characters but keep spaces for websearch
+    const cleanQuery = wallText
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2)
+        .join(' ');
+
+    if (!cleanQuery) {
+        console.log('[RelatedPivots] Empty query after cleaning.');
+        return [];
+    }
+
+    // Try domain-specific search first
+    let searchResult;
+    try {
+        searchResult = await supabase
+            .from('pivots')
+            .select(`
+                id,
+                initial_goal,
+                the_wall,
+                status,
+                user_id,
+                users:user_id (
+                    public_slug
+                )
+            `)
+            .eq('status', 'Resolved')
+            .neq('user_id', currentUserId)
+            .eq('domain', domain)
+            .textSearch('the_wall', cleanQuery, {
+                type: 'websearch',
+                config: 'english'
+            })
+            .limit(2);
+    } catch (e) {
+        console.error('[RelatedPivots] textSearch failed (likely missing index):', e);
+    }
+
+    let data = searchResult?.data;
+    let error = searchResult?.error;
+
+    // Fallback 1: Domain-specific ilike search
+    if (!data || data.length === 0) {
+        console.log(`[RelatedPivots] No textSearch results in ${domain}, trying ilike...`);
+        const firstWord = cleanQuery.split(' ')[0];
+        const { data: ilikeData, error: ilikeError } = await supabase
+            .from('pivots')
+            .select(`
+                id,
+                initial_goal,
+                the_wall,
+                status,
+                user_id,
+                users:user_id (
+                    public_slug
+                )
+            `)
+            .eq('status', 'Resolved')
+            .neq('user_id', currentUserId)
+            .eq('domain', domain)
+            .ilike('the_wall', `%${firstWord}%`)
+            .limit(2);
+
+        data = ilikeData;
+        error = ilikeError;
+    }
+
+    // Fallback 2: Global recent resolved pivots (if still nothing)
+    if (!data || data.length === 0) {
+        console.log(`[RelatedPivots] Still no matches, returning recent global resolved pivots...`);
+        const { data: globalData, error: globalError } = await supabase
+            .from('pivots')
+            .select(`
+                id,
+                initial_goal,
+                the_wall,
+                status,
+                user_id,
+                users:user_id (
+                    public_slug
+                )
+            `)
+            .eq('status', 'Resolved')
+            .neq('user_id', currentUserId)
+            .order('resolved_at', { ascending: false })
+            .limit(2);
+
+        data = globalData;
+        error = globalError;
+    }
+
+    if (error) {
+        console.error('[RelatedPivots] Final Database Error:', error);
+        return [];
+    }
+
+    console.log(`[RelatedPivots] Returning ${data?.length || 0} matches.`);
+    return data as any[];
+
+}

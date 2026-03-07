@@ -5,8 +5,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { Terminal, CheckCircle2, CircleDashed, Image as ImageIcon, Radio } from 'lucide-react';
 import { toggleMentorBeacon } from '@/app/actions/mentorship';
 import { useState } from 'react';
-import { useChat } from 'ai/react';
-import { MessageSquare, Send } from 'lucide-react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport, UIMessage } from 'ai';
+import { MessageSquare, Send, Search, ExternalLink } from 'lucide-react';
+import { getRelatedPivots } from '@/app/actions/pivot';
+import { useEffect } from 'react';
 
 interface LogCardProps {
     log: {
@@ -30,17 +33,50 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
     const isResolved = log.status === 'Resolved' || (log.the_pivot && log.the_pivot.trim() !== '');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [input, setInput] = useState('');
 
-    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-        api: '/api/chat',
-        initialMessages: [
+    const [relatedPivots, setRelatedPivots] = useState<any[]>([]);
+
+    const { messages, sendMessage, status } = useChat({
+        transport: new DefaultChatTransport({ api: '/api/chat' }),
+        messages: [
             {
                 id: 'system-context',
                 role: 'system',
-                content: `Context: The user is currently facing the following error/wall: "${log.the_wall}". Their initial goal was: "${log.initial_goal}". Please provide Socratic guidance.`
-            }
+                parts: [{ type: 'text', text: `Context: The user is currently facing the following error/wall: "${log.the_wall}". Their initial goal was: "${log.initial_goal}". Please provide Socratic guidance.` }]
+            } as UIMessage
         ]
     });
+
+    useEffect(() => {
+        const fetchMatches = async () => {
+            if (!isResolved && log.the_wall) {
+                const matches = await getRelatedPivots(log.the_wall, log.domain, log.user_id);
+                console.log('Related matches for:', log.initial_goal, matches);
+                setRelatedPivots(matches);
+            }
+        };
+        fetchMatches();
+    }, [isResolved, log.the_wall, log.domain, log.user_id]);
+
+    const getPublicSlug = (match: any) => {
+        if (Array.isArray(match.users)) return match.users[0]?.public_slug;
+        return match.users?.public_slug;
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim()) return;
+        const messageText = input;
+        setInput('');
+        await sendMessage({ text: messageText });
+    };
+
+    const isLoading = status === 'streaming' || status === 'submitted';
 
     const handleToggleBeacon = async () => {
         setIsUpdating(true);
@@ -52,7 +88,7 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
     };
 
     return (
-        <div className={`relative border-l-2 pl-6 py-2 mb-8 ${isResolved ? 'border-green-500' : 'border-red-500/80'} font-mono`}>
+        <div id={`pivot-${log.id}`} className={`relative border-l-2 pl-6 py-2 mb-8 ${isResolved ? 'border-green-500' : 'border-red-500/80'} font-mono scroll-mt-20`}>
             {/* Timeline Dot */}
             <div className={`absolute -left-[11px] top-6 w-5 h-5 rounded-full bg-black border-2 flex items-center justify-center ${isResolved ? 'border-green-500' : 'border-red-500'}`}>
                 {isResolved ? (
@@ -110,6 +146,36 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                     )}
                 </div>
 
+                {!isResolved && relatedPivots.length > 0 && (
+                    <div className="mb-6 animate-in fade-in slide-in-from-left-4 duration-1000">
+                        <div className="border border-zinc-800 bg-zinc-950/30 p-4 relative overflow-hidden group">
+                            {/* Radar Pulse Effect */}
+                            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-zinc-500/20 to-transparent animate-scan" />
+
+                            <div className="relative z-10">
+                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3 flex items-center gap-2">
+                                    <Search className="w-3 h-3 animate-pulse" />
+                                    [ SYSTEM MATCH: Related Pivots Found ]
+                                </h4>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {relatedPivots.map((match) => (
+                                        <div key={match.id} className="border border-zinc-800/50 p-3 hover:border-zinc-700 transition-colors bg-black/40">
+                                            <p className="text-xs text-zinc-400 line-clamp-1 mb-2 italic">“{match.initial_goal}”</p>
+                                            <Link
+                                                href={`/profile/${getPublicSlug(match)}#pivot-${match.id}`}
+                                                className="text-[10px] uppercase font-bold text-zinc-500 hover:text-white flex items-center gap-1.5 transition-colors"
+                                            >
+                                                View @{getPublicSlug(match)}&apos;s Pivot <ExternalLink className="w-2.5 h-2.5" />
+                                            </Link>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-6 text-sm">
                     <div className="border-l-2 border-red-500/50 pl-4">
                         <h4 className="text-red-500 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
@@ -165,7 +231,7 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                                                         {m.role === 'user' ? '> YOU' : '> DUCK'}
                                                     </span>
                                                     <div className="whitespace-pre-wrap leading-relaxed">
-                                                        {m.content}
+                                                        {m.parts?.map((p, i) => p.type === 'text' ? <span key={i}>{p.text}</span> : null)}
                                                     </div>
                                                 </div>
                                             </div>
