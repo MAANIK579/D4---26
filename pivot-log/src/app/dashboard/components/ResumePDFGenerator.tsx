@@ -1,10 +1,9 @@
 'use client';
 
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import { Terminal } from 'lucide-react';
+import { calculateGritScore } from '@/utils/gritScore';
 
-interface ResumePDFProps {
+interface ResumePDFData {
     profile: {
         name: string;
         public_slug: string;
@@ -16,112 +15,291 @@ interface ResumePDFProps {
         the_wall: string;
         the_pivot: string | null;
         domain: string;
+        status: string;
+        created_at: string;
         resolved_at: string | null;
     }[];
 }
 
-export const generatePDF = async (elementId: string, filename: string) => {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    // Temporarily make the element visible for capturing
-    const originalDisplay = element.style.display;
-    element.style.display = 'block';
-
-    try {
-        const canvas = await html2canvas(element, {
-            scale: 2, // High resolution
-            useCORS: true,
-            backgroundColor: '#000000', // Match our dark aesthetic
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'px',
-            format: 'a4',
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(filename);
-    } finally {
-        element.style.display = originalDisplay; // Restore hidden state
-    }
+// Color constants (hex) matching the terminal aesthetic
+const COLORS = {
+    black: '#000000',
+    white: '#FFFFFF',
+    green: '#22C55E',
+    red: '#EF4444',
+    zinc300: '#D4D4D8',
+    zinc400: '#A1A1AA',
+    zinc500: '#71717A',
+    zinc600: '#52525B',
+    zinc800: '#27272A',
+    zinc900: '#18181B',
 };
 
-export function ResumePDFTemplate({ profile, pivots }: ResumePDFProps) {
-    const resolvedPivots = pivots.filter(p => p.the_pivot && p.the_pivot.trim() !== '').slice(0, 5); // Top 5
-
-    return (
-        <div id="resume-pdf-template" style={{ display: 'none' }}>
-            {/* The canvas container we will capture */}
-            <div className="w-[800px] bg-black text-white font-mono p-12 custom-scrollbar">
-
-                {/* Header */}
-                <div className="border-b-2 border-green-500 pb-8 mb-8">
-                    <div className="flex items-center gap-4 mb-4">
-                        <Terminal className="w-10 h-10 text-green-500" />
-                        <div>
-                            <h1 className="text-4xl font-black uppercase tracking-tighter">
-                                {profile.name}
-                            </h1>
-                            <p className="text-zinc-500 tracking-widest uppercase">/profile/{profile.public_slug}</p>
-                        </div>
-                    </div>
-                    {profile.bio && (
-                        <p className="text-lg text-zinc-300 border-l-4 border-zinc-800 pl-4">
-                            {profile.bio}
-                        </p>
-                    )}
-                </div>
-
-                {/* Stats */}
-                <div className="mb-10 p-6 bg-zinc-900/50 border border-zinc-800">
-                    <h2 className="text-green-500 text-sm font-bold uppercase tracking-widest mb-2">[ RESILIENCE_METRICS ]</h2>
-                    <div className="text-3xl font-black">{pivots.length} <span className="text-lg text-zinc-500 font-normal">Total Walls Encountered</span></div>
-                    <div className="text-3xl font-black text-green-500 mt-2">{resolvedPivots.length} <span className="text-lg text-zinc-500 font-normal">Pivots Successfully Executed</span></div>
-                </div>
-
-                {/* Pivots */}
-                <div>
-                    <h2 className="text-xl font-black uppercase tracking-widest mb-6 border-b border-zinc-800 pb-2">
-                        [ RECENT_BREAKTHROUGHS ]
-                    </h2>
-
-                    <div className="space-y-8">
-                        {resolvedPivots.map((pivot, i) => (
-                            <div key={pivot.id} className="border-l-2 border-green-500 pl-6 relative">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-black border-2 border-green-500" />
-
-                                <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">{pivot.domain}</div>
-                                <h3 className="text-xl font-bold mb-4">{pivot.initial_goal}</h3>
-
-                                <div className="mb-4">
-                                    <h4 className="text-xs text-red-500 font-bold uppercase tracking-widest mb-1">&gt; The Wall</h4>
-                                    <p className="text-sm text-zinc-400 border-l border-red-500/30 pl-3 py-1">
-                                        {pivot.the_wall}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-xs text-green-500 font-bold uppercase tracking-widest mb-1">&gt; The Pivot</h4>
-                                    <p className="text-sm text-zinc-300 border-l border-green-500/30 pl-3 py-1 bg-green-500/5">
-                                        {pivot.the_pivot}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-12 pt-8 border-t border-zinc-800 text-center text-xs text-zinc-600 uppercase tracking-widest">
-                    Generated by PivotLog_ | Resilience Proven
-                </div>
-            </div>
-        </div>
-    );
+function hexToRgb(hex: string): [number, number, number] {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return [r, g, b];
 }
+
+// Helper to wrap text and return the lines
+function wrapText(pdf: jsPDF, text: string, maxWidth: number): string[] {
+    return pdf.splitTextToSize(text, maxWidth);
+}
+
+export const generateResumePDF = async (data: ResumePDFData) => {
+    const { profile, pivots } = data;
+    const resolvedPivots = pivots
+        .filter(p => p.the_pivot && p.the_pivot.trim() !== '')
+        .slice(0, 5);
+
+    const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    // Helper to check and add a new page if needed
+    const checkPageBreak = (requiredHeight: number) => {
+        if (y + requiredHeight > pageHeight - margin) {
+            pdf.addPage();
+            // Black background for new page
+            pdf.setFillColor(...hexToRgb(COLORS.black));
+            pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+            y = margin;
+        }
+    };
+
+    // === BLACK BACKGROUND ===
+    pdf.setFillColor(...hexToRgb(COLORS.black));
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // === HEADER ===
+    // Terminal icon placeholder (small green square)
+    pdf.setFillColor(...hexToRgb(COLORS.green));
+    pdf.rect(margin, y, 8, 8, 'F');
+    pdf.setFillColor(...hexToRgb(COLORS.black));
+    pdf.rect(margin + 2, y + 2, 4, 4, 'F');
+
+    // Name
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(24);
+    pdf.setTextColor(...hexToRgb(COLORS.white));
+    pdf.text(profile.name || 'Anonymous_Dev', margin + 12, y + 7);
+
+    y += 12;
+
+    // Slug
+    pdf.setFontSize(9);
+    pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+    pdf.text(`/profile/${profile.public_slug}`, margin + 12, y);
+    y += 8;
+
+    // Bio
+    if (profile.bio) {
+        // Left border accent
+        pdf.setFillColor(...hexToRgb(COLORS.zinc800));
+        const bioLines = wrapText(pdf, profile.bio, contentWidth - 8);
+        const bioHeight = bioLines.length * 5;
+        pdf.rect(margin, y, 1.5, bioHeight, 'F');
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(...hexToRgb(COLORS.zinc300));
+        pdf.text(bioLines, margin + 5, y + 4);
+        y += bioHeight + 4;
+    }
+
+    // Green separator line
+    pdf.setDrawColor(...hexToRgb(COLORS.green));
+    pdf.setLineWidth(0.8);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    // === RESILIENCE METRICS BOX ===
+    checkPageBreak(30);
+    pdf.setFillColor(...hexToRgb(COLORS.zinc900));
+    pdf.rect(margin, y, contentWidth, 28, 'F');
+    pdf.setDrawColor(...hexToRgb(COLORS.zinc800));
+    pdf.setLineWidth(0.3);
+    pdf.rect(margin, y, contentWidth, 28, 'S');
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.green));
+    pdf.text('[ RESILIENCE_METRICS ]', margin + 6, y + 7);
+
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.white));
+    pdf.text(`${pivots.length}`, margin + 6, y + 17);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+    pdf.text('Total Walls Encountered', margin + 6 + pdf.getTextWidth(`${pivots.length}`) + 3, y + 17);
+
+    pdf.setFontSize(18);
+    pdf.setTextColor(...hexToRgb(COLORS.green));
+    pdf.text(`${resolvedPivots.length}`, margin + 6, y + 25);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+    pdf.text('Pivots Successfully Executed', margin + 6 + pdf.getTextWidth(`${resolvedPivots.length}`) + 3, y + 25);
+
+    y += 36;
+
+    // === GRIT SCORE SECTION ===
+    const gritScore = calculateGritScore(pivots);
+    checkPageBreak(28);
+    pdf.setFillColor(...hexToRgb(COLORS.zinc900));
+    pdf.rect(margin, y, contentWidth, 24, 'F');
+    pdf.setDrawColor(...hexToRgb(COLORS.zinc800));
+    pdf.setLineWidth(0.3);
+    pdf.rect(margin, y, contentWidth, 24, 'S');
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    const gritColor = gritScore.score >= 70 ? COLORS.green : gritScore.score >= 40 ? '#EAB308' : COLORS.red;
+    pdf.setTextColor(...hexToRgb(gritColor));
+    pdf.text('[ GRIT_SCORE ]', margin + 6, y + 7);
+
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.white));
+    pdf.text(`${gritScore.score}`, margin + 6, y + 18);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+    pdf.text('/ 100  Composite Resilience Score', margin + 6 + pdf.getTextWidth(`${gritScore.score}`) + 3, y + 18);
+
+    // Progress bar
+    const barWidth = contentWidth - 12;
+    const barY = y + 21;
+    pdf.setFillColor(...hexToRgb(COLORS.zinc800));
+    pdf.rect(margin + 6, barY, barWidth, 2, 'F');
+    pdf.setFillColor(...hexToRgb(gritColor));
+    pdf.rect(margin + 6, barY, barWidth * (gritScore.score / 100), 2, 'F');
+
+    y += 32;
+
+    // === RECENT BREAKTHROUGHS ===
+    checkPageBreak(15);
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.white));
+    pdf.text('[ RECENT_BREAKTHROUGHS ]', margin, y);
+    y += 4;
+
+    // Underline
+    pdf.setDrawColor(...hexToRgb(COLORS.zinc800));
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    // === PIVOT ENTRIES ===
+    for (const pivot of resolvedPivots) {
+        const wallLines = wrapText(pdf, pivot.the_wall, contentWidth - 16);
+        const pivotLines = wrapText(pdf, pivot.the_pivot || '', contentWidth - 16);
+        const entryHeight = 20 + wallLines.length * 4.5 + pivotLines.length * 4.5 + 10;
+
+        checkPageBreak(entryHeight);
+
+        // Green timeline line
+        pdf.setDrawColor(...hexToRgb(COLORS.green));
+        pdf.setLineWidth(0.6);
+        pdf.line(margin + 2, y, margin + 2, y + entryHeight - 5);
+
+        // Timeline dot
+        pdf.setFillColor(...hexToRgb(COLORS.black));
+        pdf.circle(margin + 2, y, 2.5, 'F');
+        pdf.setDrawColor(...hexToRgb(COLORS.green));
+        pdf.setLineWidth(0.6);
+        pdf.circle(margin + 2, y, 2.5, 'S');
+
+        // Domain tag
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+        pdf.text(pivot.domain.toUpperCase(), margin + 10, y + 1);
+        y += 6;
+
+        // Goal title
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...hexToRgb(COLORS.white));
+        const goalLines = wrapText(pdf, pivot.initial_goal, contentWidth - 12);
+        pdf.text(goalLines, margin + 10, y);
+        y += goalLines.length * 5 + 4;
+
+        // "The Wall" section
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...hexToRgb(COLORS.red));
+        pdf.text('> The Wall', margin + 10, y);
+        y += 4;
+
+        // Wall left border
+        pdf.setFillColor(239, 68, 68); // red-500 with 30% opacity effect — use lighter red
+        pdf.rect(margin + 10, y - 1, 0.8, wallLines.length * 4.5 + 2, 'F');
+
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...hexToRgb(COLORS.zinc400));
+        pdf.text(wallLines, margin + 14, y + 2);
+        y += wallLines.length * 4.5 + 5;
+
+        // "The Pivot" section
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...hexToRgb(COLORS.green));
+        pdf.text('> The Pivot', margin + 10, y);
+        y += 4;
+
+        // Pivot left border
+        pdf.setFillColor(...hexToRgb(COLORS.green));
+        pdf.rect(margin + 10, y - 1, 0.8, pivotLines.length * 4.5 + 2, 'F');
+
+        // Subtle green background
+        pdf.setFillColor(34, 197, 94); // green with very low opacity
+        pdf.setGState(new (pdf as any).GState({ opacity: 0.05 }));
+        pdf.rect(margin + 10, y - 2, contentWidth - 12, pivotLines.length * 4.5 + 4, 'F');
+        pdf.setGState(new (pdf as any).GState({ opacity: 1 }));
+
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...hexToRgb(COLORS.zinc300));
+        pdf.text(pivotLines, margin + 14, y + 2);
+        y += pivotLines.length * 4.5 + 12;
+    }
+
+    if (resolvedPivots.length === 0) {
+        checkPageBreak(15);
+        pdf.setFontSize(10);
+        pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+        pdf.text('No resolved pivots yet. Keep pushing forward.', margin, y);
+        y += 10;
+    }
+
+    // === FOOTER ===
+    checkPageBreak(15);
+    y = Math.max(y, pageHeight - 25);
+    pdf.setDrawColor(...hexToRgb(COLORS.zinc800));
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.zinc600));
+    const footerText = 'Generated by PivotLog_ | Resilience Proven';
+    const footerWidth = pdf.getTextWidth(footerText);
+    pdf.text(footerText, (pageWidth - footerWidth) / 2, y);
+
+    // Save
+    pdf.save(`${profile.public_slug}_resilience_resume.pdf`);
+};
