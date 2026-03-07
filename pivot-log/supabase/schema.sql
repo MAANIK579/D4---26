@@ -56,10 +56,20 @@ create table if not exists public.endorsements (
   unique (endorsee_id, endorser_id, trait)
 );
 
+-- Create suggestions table
+create table if not exists public.suggestions (
+  id uuid default gen_random_uuid() primary key,
+  pivot_id uuid references public.pivots on delete cascade not null,
+  suggester_id uuid references public.users not null,
+  suggestion_text text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Set up Row Level Security (RLS)
 alter table public.users enable row level security;
 alter table public.pivots enable row level security;
 alter table public.endorsements enable row level security;
+alter table public.suggestions enable row level security;
 
 -- Users policies
 create policy "Public profiles are viewable by everyone."
@@ -99,6 +109,19 @@ create policy "Users can endorse others."
 create policy "Users can delete their endorsements."
   on public.endorsements for delete
   using ( auth.uid() = endorser_id );
+
+-- Suggestions policies
+create policy "Suggestions are viewable by everyone."
+  on public.suggestions for select
+  using ( true );
+
+create policy "Users can insert their own suggestions."
+  on public.suggestions for insert
+  with check ( auth.uid() = suggester_id );
+
+create policy "Users can delete their suggestions."
+  on public.suggestions for delete
+  using ( auth.uid() = suggester_id );
 
 -- Create Storage bucket for Evidence
 insert into storage.buckets (id, name, public) 

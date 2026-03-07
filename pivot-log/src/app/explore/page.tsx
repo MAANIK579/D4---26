@@ -119,14 +119,6 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                                                 {log.users?.name || "Anonymous_Dev"}
                                             </Link>
                                         </div>
-                                        {user && user.id !== log.user_id && (
-                                            <a
-                                                href={`mailto:?subject=Suggestion for your Pivot: ${log.initial_goal}&body=I saw your distress beacon on PivotLog regarding "${log.initial_goal}"...`}
-                                                className="bg-yellow-500/10 border border-yellow-500 text-yellow-500 px-3 py-1 hover:bg-yellow-500 hover:text-black transition-colors"
-                                            >
-                                                Send_Suggestion_
-                                            </a>
-                                        )}
                                     </div>
                                     <LogCard log={log} readonly={true} />
                                 </div>
