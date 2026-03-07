@@ -32,23 +32,37 @@ export async function toggleMentorBeacon(pivotId: string, currentState: boolean)
 export async function getExploreFeed() {
     const supabase = await createClient();
 
-    // Fetch the latest 30 public pivots
-    const { data: pivots, error } = await supabase
+    // Fetch the latest 30 Hall of Growth pivots
+    const { data: hallData, error: hallError } = await supabase
         .from('pivots')
         .select(`
             id, user_id, initial_goal, the_wall, the_pivot, evidence_url, status, domain, frustration_level, created_at, resolved_at, needs_mentor,
             users ( name, avatar_url, public_slug )
         `)
+        .or('status.eq.Resolved,the_pivot.neq.')
         .order('created_at', { ascending: false })
         .limit(30);
 
-    if (error) {
-        console.error('Error fetching explore feed:', error);
-        return { hallOfGrowth: [], activeBeacons: [] };
+    // Fetch the latest 30 active distress beacons
+    const { data: beaconData, error: beaconError } = await supabase
+        .from('pivots')
+        .select(`
+            id, user_id, initial_goal, the_wall, the_pivot, evidence_url, status, domain, frustration_level, created_at, resolved_at, needs_mentor,
+            users ( name, avatar_url, public_slug )
+        `)
+        .eq('needs_mentor', true)
+        .neq('status', 'Resolved')
+        .or('the_pivot.is.null,the_pivot.eq.')
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+    if (hallError || beaconError) {
+        console.error('Error fetching explore feed:', { hallError, beaconError });
     }
 
-    const hallOfGrowth = pivots.filter((p: any) => p.status === 'Resolved' || (p.the_pivot && p.the_pivot.trim() !== ''));
-    const activeBeacons = pivots.filter((p: any) => p.needs_mentor === true && p.status !== 'Resolved' && (!p.the_pivot || p.the_pivot.trim() === ''));
+    // the_pivot.neq. matches anything not exactly empty, but Supabase text blank check is safer handled in memory too just in case
+    const hallOfGrowth = (hallData || []).filter((p: any) => p.status === 'Resolved' || (p.the_pivot && p.the_pivot.trim() !== ''));
+    const activeBeacons = (beaconData || []).filter((p: any) => p.needs_mentor === true && p.status !== 'Resolved' && (!p.the_pivot || p.the_pivot.trim() === ''));
 
     return {
         hallOfGrowth,
