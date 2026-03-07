@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { getSuggestions } from '@/app/actions/suggestion';
 import { SuggestionForm } from './SuggestionForm';
 import { SuggestionList } from './SuggestionList';
+import { createClient } from '@/utils/supabase/client';
 
 interface LogCardProps {
     log: {
@@ -41,6 +42,10 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
     const [relatedPivots, setRelatedPivots] = useState<any[]>([]);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isSuggestionFormOpen, setIsSuggestionFormOpen] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    const isOwner = currentUserId === log.user_id;
 
     const { messages, sendMessage, status } = useChat({
         transport: new DefaultChatTransport({ api: '/api/chat' }),
@@ -67,8 +72,17 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
             setSuggestions(fetchedSuggestions);
         };
 
+        const fetchUser = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setCurrentUserId(user.id);
+            }
+        };
+
         fetchMatches();
         fetchSuggestions();
+        fetchUser();
     }, [isResolved, log.the_wall, log.domain, log.user_id, log.id]);
 
     const getPublicSlug = (match: any) => {
@@ -140,17 +154,33 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                                 </button>
                             )}
 
-                            {/* Always allow viewing/sending suggestions if we are unauthenticated or a different user. If it's your own dashboard, you don't send yourself suggestions usually, but there's no harm in allowing the form to open. Actually, LogCard doesn't know the current user ID natively. Let's just show the send suggestion button if it's readonly (meaning public feed) or if it's explicitly not their own card. Let's show it everywhere for simplicity, or just when log.needs_mentor is true. */}
-                            <button
-                                onClick={() => setIsSuggestionFormOpen(!isSuggestionFormOpen)}
-                                className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.3)] whitespace-nowrap flex items-center gap-2 ${isSuggestionFormOpen
-                                    ? 'bg-yellow-500 text-black hover:bg-yellow-400'
-                                    : 'bg-transparent border border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10'
-                                    }`}
-                            >
-                                <Terminal className="w-3 h-3" />
-                                {isSuggestionFormOpen ? 'Close Terminal_' : 'Send Suggestion_'}
-                            </button>
+                            {/* Suggestion Form Toggle for Non-Owners */}
+                            {!isOwner && (
+                                <button
+                                    onClick={() => setIsSuggestionFormOpen(!isSuggestionFormOpen)}
+                                    className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.3)] whitespace-nowrap flex items-center gap-2 ${isSuggestionFormOpen
+                                        ? 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                        : 'bg-transparent border border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10'
+                                        }`}
+                                >
+                                    <Terminal className="w-3 h-3" />
+                                    {isSuggestionFormOpen ? 'Close Terminal_' : 'Send Suggestion_'}
+                                </button>
+                            )}
+
+                            {/* See Suggestions Toggle for Owners */}
+                            {isOwner && suggestions.length > 0 && (
+                                <button
+                                    onClick={() => setShowSuggestions(!showSuggestions)}
+                                    className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.3)] whitespace-nowrap flex items-center gap-2 ${showSuggestions
+                                        ? 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                        : 'bg-transparent border border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10'
+                                        }`}
+                                >
+                                    <MessageSquare className="w-3 h-3" />
+                                    {showSuggestions ? 'Hide Suggestions_' : 'See Suggestions_'}
+                                </button>
+                            )}
 
                             {!readonly && (
                                 <>
@@ -292,14 +322,14 @@ export function LogCard({ log, readonly = false }: LogCardProps) {
                 )}
 
                 {/* Rendering Suggestion Form if toggled */}
-                {isSuggestionFormOpen && !isResolved && (
+                {isSuggestionFormOpen && !isResolved && !isOwner && (
                     <div className="animate-in slide-in-from-top-4 duration-300">
                         <SuggestionForm pivotId={log.id} />
                     </div>
                 )}
 
-                {/* Showing Suggestions if any */}
-                {suggestions.length > 0 && (
+                {/* Showing Suggestions if any (Owners must toggle, Non-owners see immediately) */}
+                {(showSuggestions || !isOwner) && suggestions.length > 0 && (
                     <SuggestionList suggestions={suggestions} />
                 )}
             </div>
