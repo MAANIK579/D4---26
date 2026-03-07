@@ -4,9 +4,10 @@ import { Terminal, Users, Radio, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 
-export default async function ExplorePage({ searchParams }: { searchParams: { tab?: string } }) {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
     const { hallOfGrowth, activeBeacons } = await getExploreFeed();
-    const activeTab = searchParams.tab === 'beacons' ? 'beacons' : 'hall';
+    const resolvedSearchParams = await searchParams;
+    const activeTab = resolvedSearchParams.tab === 'beacons' ? 'beacons' : 'hall';
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -53,8 +54,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: { ta
                     <Link
                         href="/explore?tab=hall"
                         className={`px-6 py-3 text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'hall'
-                                ? 'bg-purple-500 text-black shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                                : 'bg-transparent border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
+                            ? 'bg-purple-500 text-black shadow-[0_0_15px_rgba(168,85,247,0.3)]'
+                            : 'bg-transparent border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
                             }`}
                     >
                         [ The_Hall_Of_Growth ]
@@ -62,8 +63,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: { ta
                     <Link
                         href="/explore?tab=beacons"
                         className={`px-6 py-3 text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'beacons'
-                                ? 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]'
-                                : 'bg-transparent border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
+                            ? 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]'
+                            : 'bg-transparent border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
                             }`}
                     >
                         <Radio className={`w-4 h-4 ${activeTab === 'beacons' ? 'animate-ping' : ''}`} />
