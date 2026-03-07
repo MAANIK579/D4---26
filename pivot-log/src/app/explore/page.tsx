@@ -2,15 +2,11 @@ import { getExploreFeed } from '@/app/actions/mentorship';
 import { LogCard } from '@/app/dashboard/components/LogCard';
 import { Terminal, Users, Radio, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/server';
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-    const { hallOfGrowth, activeBeacons } = await getExploreFeed();
+    const { hallOfGrowth, activeBeacons, user } = await getExploreFeed();
     const resolvedSearchParams = await searchParams;
     const activeTab = resolvedSearchParams.tab === 'beacons' ? 'beacons' : 'hall';
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
 
     return (
         <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] font-mono text-white p-4 sm:p-8 selection:bg-green-500/30">

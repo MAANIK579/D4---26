@@ -32,6 +32,9 @@ export async function toggleMentorBeacon(pivotId: string, currentState: boolean)
 export async function getExploreFeed() {
     const supabase = await createClient();
 
+    // Get the current user from the same client to avoid creating multiple clients
+    const { data: { user } } = await supabase.auth.getUser();
+
     // Fetch the latest 30 Hall of Growth pivots
     const { data: hallData, error: hallError } = await supabase
         .from('pivots')
@@ -66,7 +69,8 @@ export async function getExploreFeed() {
 
     return {
         hallOfGrowth,
-        activeBeacons
+        activeBeacons,
+        user
     };
 }
 
