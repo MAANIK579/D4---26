@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { calculateGritScore } from '@/utils/gritScore';
 
 export async function createPivot(formData: FormData) {
     const supabase = await createClient();
@@ -130,10 +131,10 @@ export async function getAnalytics() {
 
     if (!user) return null;
 
-    // Fetch all user pivots
+    // Fetch all user pivots (including domain for grit score)
     const { data, error } = await supabase
         .from('pivots')
-        .select('created_at, resolved_at, status')
+        .select('created_at, resolved_at, status, domain')
         .eq('user_id', user.id);
 
     if (error) {
@@ -171,11 +172,15 @@ export async function getAnalytics() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(-30); // Last 30 days of activity
 
+    // Calculate Grit Score
+    const gritScore = calculateGritScore(data);
+
     return {
         totalLogged: totalPivots,
         totalResolved: resolvedPivots.length,
         averageResolutionTimeHours,
         activityData,
+        gritScore,
     };
 }
 
@@ -200,8 +205,12 @@ export async function getPublicProfile(username: string) {
         .eq('user_id', userData.id)
         .order('created_at', { ascending: false });
 
+    const pivots = pivotError ? [] : pivotData;
+    const gritScore = calculateGritScore(pivots);
+
     return {
         profile: userData,
-        pivots: pivotError ? [] : pivotData
+        pivots,
+        gritScore,
     };
 }

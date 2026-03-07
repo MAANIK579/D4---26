@@ -1,6 +1,7 @@
 'use client';
 
 import { jsPDF } from 'jspdf';
+import { calculateGritScore } from '@/utils/gritScore';
 
 interface ResumePDFData {
     profile: {
@@ -14,6 +15,8 @@ interface ResumePDFData {
         the_wall: string;
         the_pivot: string | null;
         domain: string;
+        status: string;
+        created_at: string;
         resolved_at: string | null;
     }[];
 }
@@ -149,6 +152,40 @@ export const generateResumePDF = async (data: ResumePDFData) => {
     pdf.text('Pivots Successfully Executed', margin + 6 + pdf.getTextWidth(`${resolvedPivots.length}`) + 3, y + 25);
 
     y += 36;
+
+    // === GRIT SCORE SECTION ===
+    const gritScore = calculateGritScore(pivots);
+    checkPageBreak(28);
+    pdf.setFillColor(...hexToRgb(COLORS.zinc900));
+    pdf.rect(margin, y, contentWidth, 24, 'F');
+    pdf.setDrawColor(...hexToRgb(COLORS.zinc800));
+    pdf.setLineWidth(0.3);
+    pdf.rect(margin, y, contentWidth, 24, 'S');
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    const gritColor = gritScore.score >= 70 ? COLORS.green : gritScore.score >= 40 ? '#EAB308' : COLORS.red;
+    pdf.setTextColor(...hexToRgb(gritColor));
+    pdf.text('[ GRIT_SCORE ]', margin + 6, y + 7);
+
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...hexToRgb(COLORS.white));
+    pdf.text(`${gritScore.score}`, margin + 6, y + 18);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(...hexToRgb(COLORS.zinc500));
+    pdf.text('/ 100  Composite Resilience Score', margin + 6 + pdf.getTextWidth(`${gritScore.score}`) + 3, y + 18);
+
+    // Progress bar
+    const barWidth = contentWidth - 12;
+    const barY = y + 21;
+    pdf.setFillColor(...hexToRgb(COLORS.zinc800));
+    pdf.rect(margin + 6, barY, barWidth, 2, 'F');
+    pdf.setFillColor(...hexToRgb(gritColor));
+    pdf.rect(margin + 6, barY, barWidth * (gritScore.score / 100), 2, 'F');
+
+    y += 32;
 
     // === RECENT BREAKTHROUGHS ===
     checkPageBreak(15);

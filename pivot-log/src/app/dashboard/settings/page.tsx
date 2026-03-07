@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { SettingsForm } from './SettingsForm';
+import { ApiKeyDisplay } from '../components/ApiKeyDisplay';
 import { Settings } from 'lucide-react';
 
 export const metadata = {
@@ -18,7 +19,7 @@ export default async function SettingsPage() {
 
     const { data: profile } = await supabase
         .from('users')
-        .select('name, public_slug, bio, github_url, linkedin_url, website_url')
+        .select('name, public_slug, bio, github_url, linkedin_url, website_url, api_key')
         .eq('id', user.id)
         .single();
 
@@ -40,6 +41,16 @@ export default async function SettingsPage() {
             </header>
 
             <SettingsForm profile={profile} />
+
+            {/* API Key Section */}
+            {profile?.api_key && (
+                <div className="mt-10">
+                    <h2 className="text-lg font-black uppercase tracking-widest text-white border-b border-zinc-800 pb-2 mb-6 font-mono flex items-center gap-2">
+                        <span className="text-amber-500">⚡</span> API / MCP Integration
+                    </h2>
+                    <ApiKeyDisplay apiKey={profile.api_key} />
+                </div>
+            )}
         </div>
     );
 }

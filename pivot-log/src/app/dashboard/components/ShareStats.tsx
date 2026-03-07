@@ -7,13 +7,15 @@ interface ShareStatsProps {
     username: string;
     totalPivots: number;
     domains: string; // comma separated list
+    gritScore?: number;
 }
 
-export function ShareStats({ username, totalPivots, domains }: ShareStatsProps) {
+export function ShareStats({ username, totalPivots, domains, gritScore }: ShareStatsProps) {
     const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
     const getShareText = () => {
-        return `Check out my Resilience Portfolio on PivotLog: I've resolved ${totalPivots} major roadblocks.\n\n${window.location.origin}/profile/${username}`;
+        const gritText = gritScore !== undefined ? ` My Grit Score: ${gritScore}/100.` : '';
+        return `Check out my Resilience Portfolio on PivotLog: I've resolved ${totalPivots} major roadblocks.${gritText}\n\n${window.location.origin}/profile/${username}`;
     };
 
     const getShareUrl = () => {

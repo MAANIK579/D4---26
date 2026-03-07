@@ -16,6 +16,8 @@ interface ExportResumeButtonProps {
         the_wall: string;
         the_pivot: string | null;
         domain: string;
+        status: string;
+        created_at: string;
         resolved_at: string | null;
     }[];
 }

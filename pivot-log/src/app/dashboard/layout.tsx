@@ -41,10 +41,6 @@ export default async function DashboardLayout({
                         <PlusCircle className="w-5 h-5" />
                         New Pivot
                     </Link>
-                    <Link href={`/${userSlug}`} className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-zinc-400 hover:bg-white/5 hover:text-white transition-colors" target="_blank">
-                        <User className="w-5 h-5" />
-                        Public Profile
-                    </Link>
                 </div>
                 <div className="p-4 border-t border-white/10">
                     <Link href="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">

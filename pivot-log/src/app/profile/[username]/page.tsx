@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import { getPublicProfile } from '../../actions/pivot';
 import { LogCard } from '../../dashboard/components/LogCard';
-import { Terminal, ShieldCheck, Award, Github, Linkedin, Link2 } from 'lucide-react';
+import { Terminal, ShieldCheck, Award, Github, Linkedin, Link2, Target, Clock, Zap, Flame, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { getEndorsements } from '../../actions/mentorship';
 import { EndorsementButton } from '../../dashboard/components/EndorsementButton';
 import { createClient } from '@/utils/supabase/server';
 import { ExportResumeButton } from '../../dashboard/components/ExportResumeButton';
+import { GritScoreCard } from '../../dashboard/components/GritScoreCard';
 import type { Metadata, ResolvingMetadata } from 'next';
 
 export async function generateMetadata(
@@ -67,7 +68,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         notFound();
     }
 
-    const { profile, pivots } = data;
+    const { profile, pivots, gritScore } = data;
     const endorsements = await getEndorsements(profile.id);
 
     // Group endorsements by trait for rendering
@@ -76,8 +77,48 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         return acc;
     }, {});
 
+    // Compute stats from pivots
+    const totalPivots = pivots?.length || 0;
+    const resolvedPivots = pivots?.filter(p => p.status === 'Resolved') || [];
+    const resolutionRate = totalPivots > 0 ? Math.round((resolvedPivots.length / totalPivots) * 100) : 0;
+
+    let avgResTime = 0;
+    if (resolvedPivots.length > 0) {
+        let totalHours = 0;
+        resolvedPivots.forEach(p => {
+            if (p.resolved_at && p.created_at) {
+                totalHours += (new Date(p.resolved_at).getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60);
+            }
+        });
+        avgResTime = Math.round(totalHours / resolvedPivots.length);
+    }
+
+    // Compute domain stats
+    const domainStats: Record<string, { total: number; resolved: number }> = {};
+    pivots?.forEach(p => {
+        if (!domainStats[p.domain]) domainStats[p.domain] = { total: 0, resolved: 0 };
+        domainStats[p.domain].total++;
+        if (p.status === 'Resolved') domainStats[p.domain].resolved++;
+    });
+
+    const domainColors: Record<string, string> = {
+        'Frontend': 'bg-blue-500',
+        'Backend': 'bg-green-500',
+        'Database': 'bg-yellow-500',
+        'Infrastructure': 'bg-orange-500',
+        'Design': 'bg-pink-500',
+        'Logic': 'bg-purple-500',
+        'Other': 'bg-zinc-500',
+    };
+
+    const socialLinks = [
+        { url: profile.github_url, icon: Github, label: 'GitHub' },
+        { url: profile.linkedin_url, icon: Linkedin, label: 'LinkedIn' },
+        { url: profile.website_url, icon: Link2, label: 'Website' },
+    ].filter(l => l.url);
+
     return (
-        <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] font-mono text-white p-4 sm:p-8 selection:bg-green-500/30">
+        <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] font-mono text-white selection:bg-green-500/30">
             {/* Blueprint Grid Background Pattern */}
             <div
                 className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
@@ -94,111 +135,196 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <div className="absolute top-1/4 -right-64 w-[500px] h-[500px] bg-green-500/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-1/4 -left-64 w-[500px] h-[500px] bg-red-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="max-w-4xl mx-auto relative z-10">
-                {/* Header Profile Section */}
-                <div className="mt-12 mb-16 border border-zinc-800 bg-black p-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 blur-[100px] pointer-events-none" />
+            <div className="max-w-4xl mx-auto relative z-10 p-4 sm:p-8">
 
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 bg-zinc-900 border-2 border-green-500/30 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.1)]">
+                {/* ===== HERO SECTION ===== */}
+                <section className="mt-8 mb-10 border border-zinc-800 bg-black relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 blur-[100px] pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/5 blur-[80px] pointer-events-none" />
+
+                    <div className="relative z-10 p-6 sm:p-8">
+                        {/* Top Row: Avatar + Name + Badge */}
+                        <div className="flex items-start gap-5">
+                            <div className="w-20 h-20 flex-shrink-0 bg-zinc-900 border-2 border-green-500/30 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.1)]">
                                 {profile.avatar_url ? (
                                     <img src={profile.avatar_url} alt={profile.name} className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                     <Terminal className="w-8 h-8 text-green-500" />
                                 )}
                             </div>
-                            <div>
-                                <h1 className="text-3xl font-black uppercase tracking-tighter text-white">
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter text-white truncate">
                                     {profile.name || "Anonymous_Dev"}
                                 </h1>
-                                <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mt-1 flex items-center gap-2">
-                                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                                <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1 flex items-center gap-2">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                                     <span>Verified Resilience Portfolio</span>
                                 </div>
-                                {profile.bio && (
-                                    <p className="mt-4 text-sm text-zinc-400 max-w-sm border-l-2 border-zinc-800 pl-3 leading-relaxed">
-                                        {profile.bio}
-                                    </p>
-                                )}
-                                <div className="flex items-center gap-3 mt-4">
-                                    {profile.github_url && (
-                                        <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
-                                            <Github className="w-5 h-5" />
-                                        </a>
-                                    )}
-                                    {profile.linkedin_url && (
-                                        <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
-                                            <Linkedin className="w-5 h-5" />
-                                        </a>
-                                    )}
-                                    {profile.website_url && (
-                                        <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors">
-                                            <Link2 className="w-5 h-5" />
-                                        </a>
-                                    )}
-                                </div>
                             </div>
                         </div>
 
-                        <div className="bg-zinc-900/50 border border-green-500/20 px-6 py-4 text-center">
-                            <div className="text-3xl font-black text-green-500">{pivots?.length || 0}</div>
-                            <div className="text-xs text-zinc-400 uppercase tracking-widest font-bold mt-1">Pivots Executed</div>
-                        </div>
+                        {/* Bio */}
+                        {profile.bio && (
+                            <p className="mt-5 text-sm text-zinc-300 leading-relaxed border-l-2 border-green-500/40 pl-4 max-w-2xl">
+                                {profile.bio}
+                            </p>
+                        )}
 
-                        {/* Endorsements summary & button */}
-                        <div className="flex flex-col items-end gap-3 z-10">
-                            {Object.entries(traitCounts).length > 0 && (
-                                <div className="flex flex-wrap justify-end gap-2 mb-2 max-w-[250px]">
-                                    {Object.entries(traitCounts).map(([trait, count]) => (
-                                        <div key={trait} className="flex items-center gap-1.5 bg-black border border-purple-500/30 px-2 py-1">
-                                            <Award className="w-3 h-3 text-purple-500" />
-                                            <span className="text-[10px] uppercase font-bold text-zinc-300">{trait}</span>
-                                            <span className="text-xs font-black text-purple-400 bg-purple-500/10 px-1">{count as number}</span>
-                                        </div>
-                                    ))}
+                        {/* Social Links */}
+                        {socialLinks.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 mt-5">
+                                {socialLinks.map(({ url, icon: Icon, label }) => (
+                                    <a
+                                        key={label}
+                                        href={url!}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-xs uppercase tracking-widest font-bold"
+                                    >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        {label}
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* ===== STATS GRID ===== */}
+                <section className="mb-10">
+                    <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full inline-block"></span>
+                        Performance_Metrics
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        {/* Grit Score — full card spanning left column */}
+                        <GritScoreCard data={gritScore} />
+
+                        {/* Right column: 3 mini stat cards */}
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="bg-black border border-zinc-800 p-4 flex items-center justify-between hover:border-green-500/50 transition-colors">
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Pivots_Executed</div>
+                                    <div className="text-2xl font-black text-white">{totalPivots}</div>
                                 </div>
-                            )}
-                            <EndorsementButton
-                                endorseeId={profile.id}
-                                endorsements={endorsements}
-                                currentUserId={currentUser?.id}
-                            />
-                            <div className="mt-4 w-full">
-                                <ExportResumeButton profile={profile} pivots={pivots || []} />
+                                <Layers className="w-5 h-5 text-green-500" />
+                            </div>
+                            <div className="bg-black border border-zinc-800 p-4 flex items-center justify-between hover:border-green-500/50 transition-colors">
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Resolution_Rate</div>
+                                    <div className="text-2xl font-black text-white">{resolutionRate}<span className="text-sm text-zinc-500">%</span></div>
+                                </div>
+                                <Target className="w-5 h-5 text-green-500" />
+                            </div>
+                            <div className="bg-black border border-zinc-800 p-4 flex items-center justify-between hover:border-yellow-500/50 transition-colors">
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Avg_Resolution</div>
+                                    <div className="text-2xl font-black text-white">{avgResTime} <span className="text-sm text-zinc-500">hrs</span></div>
+                                </div>
+                                <Clock className="w-5 h-5 text-yellow-500" />
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            {/* Feed of Resolved Pivots */}
-            <div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-3 mb-10 border-b border-zinc-800 pb-4">
-                    [ Resolved_Logs ]
-                </h2>
+                {/* ===== DOMAIN EXPERTISE ===== */}
+                {Object.keys(domainStats).length > 0 && (
+                    <section className="mb-10">
+                        <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-purple-500 rounded-full inline-block"></span>
+                            Domain_Expertise
+                        </h2>
 
-                {(!pivots || pivots.length === 0) ? (
-                    <div className="text-center py-20 border border-zinc-800 border-dashed bg-black/50">
-                        <p className="text-zinc-500 uppercase tracking-widest text-sm">No resolved pivots found for this user yet.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {pivots.map(pivot => (
-                            <LogCard key={pivot.id} log={pivot} readonly={true} />
-                        ))}
-                    </div>
+                        <div className="bg-black border border-zinc-800 p-5">
+                            <div className="space-y-3">
+                                {Object.entries(domainStats)
+                                    .sort((a, b) => b[1].total - a[1].total)
+                                    .map(([domain, stats]) => {
+                                        const pct = stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0;
+                                        return (
+                                            <div key={domain} className="flex items-center gap-3">
+                                                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold w-28 flex-shrink-0 truncate">{domain}</span>
+                                                <div className="flex-1 bg-zinc-900 h-2 overflow-hidden rounded-sm">
+                                                    <div
+                                                        className={`h-full ${domainColors[domain] || 'bg-zinc-500'} transition-all duration-500`}
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-zinc-500 font-bold w-16 text-right flex-shrink-0">
+                                                    {stats.resolved}/{stats.total}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    </section>
                 )}
+
+                {/* ===== ENDORSEMENTS ===== */}
+                <section className="mb-10">
+                    <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full inline-block"></span>
+                        Endorsements
+                    </h2>
+
+                    <div className="bg-black border border-zinc-800 p-5">
+                        {Object.entries(traitCounts).length > 0 ? (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {Object.entries(traitCounts).map(([trait, count]) => (
+                                    <div key={trait} className="flex items-center gap-1.5 bg-zinc-900 border border-purple-500/30 px-3 py-1.5 hover:border-purple-500/60 transition-colors">
+                                        <Award className="w-3 h-3 text-purple-500" />
+                                        <span className="text-[10px] uppercase font-bold text-zinc-300">{trait}</span>
+                                        <span className="text-xs font-black text-purple-400 bg-purple-500/10 px-1.5 py-0.5 ml-1">{count as number}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-zinc-600 uppercase tracking-widest mb-4">No endorsements yet. Be the first!</p>
+                        )}
+
+                        <EndorsementButton
+                            endorseeId={profile.id}
+                            endorsements={endorsements}
+                            currentUserId={currentUser?.id}
+                        />
+                    </div>
+                </section>
+
+                {/* ===== PIVOT LOGS ===== */}
+                <section className="mb-10">
+                    <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-red-500 rounded-full inline-block"></span>
+                        Pivot_Logs
+                        <span className="text-[10px] bg-zinc-900 border border-zinc-800 px-2 py-0.5 ml-1">{totalPivots}</span>
+                    </h2>
+
+                    {(!pivots || pivots.length === 0) ? (
+                        <div className="text-center py-16 border border-zinc-800 border-dashed bg-black/50">
+                            <Terminal className="w-6 h-6 text-zinc-700 mx-auto mb-3" />
+                            <p className="text-zinc-500 uppercase tracking-widest text-sm">No pivot logs found for this user yet.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {pivots.map(pivot => (
+                                <LogCard key={pivot.id} log={pivot} readonly={true} />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                {/* ===== EXPORT + FOOTER ===== */}
+                <section className="border-t border-zinc-800 pt-8 pb-12">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <ExportResumeButton profile={profile} pivots={pivots || []} />
+                        <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-widest text-xs">
+                            <Terminal className="w-4 h-4" />
+                            Powered by PivotLog
+                        </Link>
+                    </div>
+                </section>
             </div>
-
-            <div className="mt-20 text-center border-t border-zinc-800 pt-8 pb-12">
-                <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-widest text-xs">
-                    <Terminal className="w-4 h-4" />
-                    Powered by PivotLog
-                </Link>
-            </div>
-
-
         </div>
     );
 }
