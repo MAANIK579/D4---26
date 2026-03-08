@@ -11,9 +11,16 @@ export async function updateSession(request: NextRequest) {
         supabaseUrl = `https://${supabaseUrl}`;
     }
 
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    if (!supabaseUrl || !supabaseKey) { // fallback safely
+        console.error("Missing Supabase environment variables in Middleware!");
+        return supabaseResponse;
+    }
+
     const supabase = createServerClient(
         supabaseUrl,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseKey,
         {
             cookies: {
                 getAll() {
