@@ -3,13 +3,13 @@
 import { Github } from 'lucide-react'
 import { signInWithOAuth } from './actions'
 
+const signInWithGithub = signInWithOAuth.bind(null, 'github')
+const signInWithGoogle = signInWithOAuth.bind(null, 'google')
+
 export function OAuthButtons() {
     return (
         <div className="mt-6 grid grid-cols-2 gap-4">
-            <form action={async () => {
-                'use server'
-                await signInWithOAuth('github')
-            }}>
+            <form action={signInWithGithub}>
                 <button
                     type="submit"
                     className="flex w-full items-center justify-center gap-3 border border-zinc-800 bg-black px-3 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors focus-visible:ring-transparent group"
@@ -18,10 +18,7 @@ export function OAuthButtons() {
                     <span className="text-sm font-bold uppercase tracking-wider leading-6">GitHub</span>
                 </button>
             </form>
-            <form action={async () => {
-                'use server'
-                await signInWithOAuth('google')
-            }}>
+            <form action={signInWithGoogle}>
                 <button
                     type="submit"
                     className="flex w-full items-center justify-center gap-3 border border-zinc-800 bg-black px-3 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors focus-visible:ring-transparent grayscale hover:grayscale-0 group"

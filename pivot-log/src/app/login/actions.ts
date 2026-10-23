@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 
-export async function signInWithOAuth(provider: 'google' | 'github') {
+export async function signInWithOAuth(provider: 'google' | 'github', formData?: FormData) {
     const supabase = await createClient()
     const headersList = await headers()
     const origin = headersList.get('origin')
