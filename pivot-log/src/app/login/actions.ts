@@ -5,6 +5,27 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 
+export async function signInWithOAuth(provider: 'google' | 'github') {
+    const supabase = await createClient()
+    const headersList = await headers()
+    const origin = headersList.get('origin')
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+            redirectTo: `${origin}/auth/callback`,
+        },
+    })
+
+    if (error) {
+        redirect(`/login?error=true&message=${encodeURIComponent(error.message)}`)
+    }
+
+    if (data.url) {
+        redirect(data.url)
+    }
+}
+
 export async function login(formData: FormData) {
     const supabase = await createClient()
 
