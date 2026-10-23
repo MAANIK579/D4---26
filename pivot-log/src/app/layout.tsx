@@ -13,8 +13,12 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pivotlog.tech'),
   title: 'PivotLog | Turn Failures into Triumphs',
   description: 'A digital repository where professionals document their "iterations" to demonstrate problem-solving depth and resilience.',
+  verification: {
+    google: 'vMcIoSZSsMjdp_4e5-VSGJXiJvuz3ZIj1dHx7pHIV3w',
+  },
 };
 
 export default function RootLayout({
